@@ -35,16 +35,16 @@ const float HUM_COUPER_VMC       = 60.0;  // % : en dessous, VMC off
 
 // ---------- Cadence ----------
 const unsigned long PERIODE_LECTURE_MS = 2000;   // le DHT22 ne lit pas plus vite que ~0,5 Hz
-const unsigned long PERIODE_PUBLI_MS   = 10000;  // publication des mesures
+const unsigned long PERIODE_PUBLI_MS   = 5000;  // publication des mesures
 const int NB_ECHANTILLONS = 5;                   // moyenne glissante (lissage)
 
 // ---------- Topics ----------
-const char* T_MESURES = "kfd-7f3a/piece/mesures";
-const char* T_ETAT    = "kfd-7f3a/piece/etat";
-const char* T_STATUT  = "kfd-7f3a/piece/objet/statut";
-const char* T_FENETRE = "kfd-7f3a/piece/fenetre/commande";
-const char* T_VMC     = "kfd-7f3a/piece/vmc/commande";
-const char* T_MODE    = "kfd-7f3a/piece/mode";
+const char* T_MESURES = "piece/mesures";
+const char* T_ETAT    = "piece/etat";
+const char* T_STATUT  = "piece/objet/statut";
+const char* T_FENETRE = "piece/fenetre/commande";
+const char* T_VMC     = "piece/vmc/commande";
+const char* T_MODE    = "piece/mode";
 
 // ---------- Objets ----------
 DHT dht(PIN_DHT, DHT22);
@@ -77,7 +77,7 @@ void appliquerVmc(bool on) {
 void publierEtat() {
   JsonDocument doc;
   doc["fenetre"] = fenetreOuverte ? "ouverte" : "fermee";
-  doc["vmc"]     = vmcActive ? "on" : "off";
+  doc["vmc"]     = vmcActive ? "allumee" : "coupee";
   doc["mode"]    = modeAuto ? "auto" : "manuel";
   char buf[96];
   serializeJson(doc, buf);
@@ -111,17 +111,18 @@ void surMessage(char* topic, byte* payload, unsigned int len) {
 
   const char* action = doc["action"] | "";
   if (strcmp(topic, T_FENETRE) == 0) {
-    if (strcmp(action, "ouvrir") == 0)      appliquerFenetre(true);
-    else if (strcmp(action, "fermer") == 0) appliquerFenetre(false);
+    if (strcmp(action, "ouverte") == 0)      appliquerFenetre(true);
+    else if (strcmp(action, "fermee") == 0) appliquerFenetre(false);
     else return;
   } else if (strcmp(topic, T_VMC) == 0) {
-    if (strcmp(action, "on") == 0)       appliquerVmc(true);
-    else if (strcmp(action, "off") == 0) appliquerVmc(false);
+    if (strcmp(action, "allumee") == 0)       appliquerVmc(true);
+    else if (strcmp(action, "coupee") == 0) appliquerVmc(false);
     else return;
   }
   publierEtat();
 }
 
+// à changer pour connexion wifi via externe ou juste simulation
 // ---------- Connexions ----------
 void connecterWifi() {
   Serial.print("WiFi");
