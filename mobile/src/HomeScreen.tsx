@@ -2,6 +2,7 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-nat
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SEUIL_HUMIDITE, SEUIL_TEMPERATURE } from './config';
+import { PieceIsometrique } from './PieceIsometrique';
 import type { Piece } from './types';
 
 const COULEURS = {
@@ -18,19 +19,19 @@ const COULEURS = {
 
 type MesureProps = {
   libelle: string;
-  valeur: number;
+  valeur: number | null; // null tant qu'aucune mesure n'est reçue
   unite: string;
   seuil: number;
   messageAlerte: string;
 };
 
 function CarteMesure({ libelle, valeur, unite, seuil, messageAlerte }: MesureProps) {
-  const depasse = valeur >= seuil;
+  const depasse = valeur !== null && valeur >= seuil;
   return (
     <View style={[styles.carte, styles.carteMesure, depasse && styles.carteAlerte]}>
       <Text style={styles.libelle}>{libelle}</Text>
       <Text style={[styles.valeur, depasse && styles.texteAlerte]}>
-        {valeur.toFixed(1)}
+        {valeur === null ? '—' : valeur.toFixed(1)}
         <Text style={styles.unite}> {unite}</Text>
       </Text>
       <Text style={[styles.detail, depasse && styles.texteAlerte]}>
@@ -75,29 +76,36 @@ function LigneCommande({ nom, etat, action, desactive, onPress }: CommandeProps)
 
 export function HomeScreen({ piece }: { piece: Piece }) {
   const { mesures, recuA, etat } = piece;
-  const auto = etat.mode === 'auto';
-  const fenetreOuverte = etat.fenetre === 'ouverte';
-  const vmcAllumee = etat.vmc === 'allumee';
+  const auto = etat?.mode === 'auto';
+  const fenetreOuverte = etat?.fenetre === 'ouverte';
+  const vmcAllumee = etat?.vmc === 'allumee';
+  // Pas de commande tant qu'on ne connaît pas l'état réel de l'objet.
+  const commandesBloquees = auto || etat === null || piece.broker !== 'connecte';
+  const sousTitre = recuA
+    ? `${piece.source === 'demo' ? 'Données factices · ' : ''}dernière mesure à ${recuA.toLocaleTimeString('fr-FR')}`
+    : 'En attente de la première mesure';
 
   return (
     <SafeAreaView style={styles.ecran}>
       <ScrollView contentContainerStyle={styles.contenu}>
         <Text style={styles.titre}>Confort de la pièce</Text>
-        <Text style={styles.detail}>
-          Données factices · dernière mesure à {recuA.toLocaleTimeString('fr-FR')}
-        </Text>
+        <Text style={styles.detail}>{sousTitre}</Text>
+
+        <View style={[styles.carte, styles.carteVue]}>
+          <PieceIsometrique mesures={mesures} etat={etat} />
+        </View>
 
         <View style={styles.mesures}>
           <CarteMesure
             libelle="Température"
-            valeur={mesures.temperature}
+            valeur={mesures?.temperature ?? null}
             unite="°C"
             seuil={SEUIL_TEMPERATURE}
             messageAlerte="Trop chaud"
           />
           <CarteMesure
             libelle="Humidité"
-            valeur={mesures.humidite}
+            valeur={mesures?.humidite ?? null}
             unite="%"
             seuil={SEUIL_HUMIDITE}
             messageAlerte="Trop humide"
@@ -115,6 +123,7 @@ export function HomeScreen({ piece }: { piece: Piece }) {
             <Switch
               accessibilityLabel="Mode auto"
               value={auto}
+              disabled={etat === null}
               onValueChange={(actif) => piece.changerMode(actif ? 'auto' : 'manuel')}
               trackColor={{ true: COULEURS.accent, false: COULEURS.desactive }}
             />
@@ -122,17 +131,17 @@ export function HomeScreen({ piece }: { piece: Piece }) {
           <View style={styles.separateur} />
           <LigneCommande
             nom="Fenêtre"
-            etat={fenetreOuverte ? 'Ouverte' : 'Fermée'}
+            etat={etat ? (fenetreOuverte ? 'Ouverte' : 'Fermée') : 'Inconnu'}
             action={fenetreOuverte ? 'Fermer' : 'Ouvrir'}
-            desactive={auto}
+            desactive={commandesBloquees}
             onPress={() => piece.commanderFenetre(fenetreOuverte ? 'fermer' : 'ouvrir')}
           />
           <View style={styles.separateur} />
           <LigneCommande
             nom="VMC"
-            etat={vmcAllumee ? 'Allumée' : 'Coupée'}
+            etat={etat ? (vmcAllumee ? 'Allumée' : 'Coupée') : 'Inconnu'}
             action={vmcAllumee ? 'Couper' : 'Allumer'}
-            desactive={auto}
+            desactive={commandesBloquees}
             onPress={() => piece.commanderVmc(vmcAllumee ? 'couper' : 'allumer')}
           />
         </View>
@@ -154,6 +163,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   carteMesure: { flex: 1, gap: 4 },
+  carteVue: { padding: 8 },
   carteAlerte: { backgroundColor: COULEURS.alerteFond, borderColor: COULEURS.alerte },
   libelle: { fontSize: 14, fontWeight: '600', color: COULEURS.texteDiscret },
   valeur: {

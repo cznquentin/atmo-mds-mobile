@@ -10,7 +10,7 @@ function varier(valeur: number, amplitude: number): number {
   return Math.round((valeur + variation) * 10) / 10;
 }
 
-// Source de données factice : à remplacer par un hook MQTT qui renvoie le même type Piece.
+// Mode démo : données factices, sans broker. Renvoie le même type Piece que usePieceMqtt.
 export function usePieceFactice(): Piece {
   const [mesures, setMesures] = useState<Mesures>({ temperature: 23.4, humidite: 48.2 });
   const [recuA, setRecuA] = useState(() => new Date());
@@ -28,6 +28,9 @@ export function usePieceFactice(): Piece {
   }, []);
 
   return {
+    source: 'demo',
+    broker: 'connecte',
+    objet: 'en_ligne',
     mesures,
     recuA,
     etat,
