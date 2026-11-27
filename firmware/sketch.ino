@@ -3,11 +3,11 @@
  * Capteur DHT22 + servo (fenêtre) + relais/LED (VMC), le tout piloté en MQTT (HiveMQ Cloud, TLS).
  *
  * Contrat MQTT (à valider avec Quentin et Raphaël) :
- *   publie  piece/mesures         {"t":24.5,"h":61.2,"ts":1730900000}   toutes les 10 s
- *   publie  piece/etat            {"fenetre":"ouverte","vmc":"on","mode":"auto"}  (retain)
+ *   publie  piece/mesures         {"temperature":24.5,"humidite":61.2}   toutes les 10 s
+ *   publie  piece/etat            {"fenetre":"ouverte","vmc":"allumee","mode":"auto"}  (retain)
  *   publie  piece/objet/statut    "en_ligne" / "hors_ligne" (Last Will, retain)
- *   écoute  piece/fenetre/commande {"action":"ouvrir"|"fermer"}
- *   écoute  piece/vmc/commande     {"action":"on"|"off"}
+ *   écoute  piece/fenetre/commande {"action":"ouverte"|"fermee"}
+ *   écoute  piece/vmc/commande     {"action":"allumee"|"coupee"}
  *   écoute  piece/mode             {"mode":"auto"|"manuel"}  (retain)
  */
 
@@ -34,8 +34,8 @@ const float HUM_ALLUMER_VMC      = 70.0;  // % : au-dessus, VMC on
 const float HUM_COUPER_VMC       = 60.0;  // % : en dessous, VMC off
 
 // ---------- Cadence ----------
-const unsigned long PERIODE_LECTURE_MS = 2000;   // le DHT22 ne lit pas plus vite que ~0,5 Hz
-const unsigned long PERIODE_PUBLI_MS   = 5000;  // publication des mesures
+const unsigned long PERIODE_LECTURE_MS = 100;   // le DHT22 ne lit pas plus vite que ~0,5 Hz
+const unsigned long PERIODE_PUBLI_MS   = 100;  // publication des mesures
 const int NB_ECHANTILLONS = 5;                   // moyenne glissante (lissage)
 
 // ---------- Topics ----------
@@ -86,18 +86,14 @@ void publierEtat() {
 
 // ---------- Réception des commandes ----------
 void surMessage(char* topic, byte* payload, unsigned int len) {
-  JsonDocument doc;
-  if (deserializeJson(doc, payload, len)) {
-    Serial.println("JSON invalide reçu");
-    return;
-  }
+  String msg;
+  for (unsigned int i = 0; i < len; i++) msg += (char)payload[i];
 
   if (strcmp(topic, T_MODE) == 0) {
-    const char* m = doc["mode"] | "";
-    if (strcmp(m, "auto") == 0)        modeAuto = true;
-    else if (strcmp(m, "manuel") == 0) modeAuto = false;
+    if (msg == "auto")        modeAuto = true;
+    else if (msg == "manuel") modeAuto = false;
     else return;
-    Serial.printf("Mode -> %s\n", m);
+    Serial.printf("Mode -> %s\n", msg.c_str());
     publierEtat();
     return;
   }
@@ -109,14 +105,13 @@ void surMessage(char* topic, byte* payload, unsigned int len) {
     return;
   }
 
-  const char* action = doc["action"] | "";
   if (strcmp(topic, T_FENETRE) == 0) {
-    if (strcmp(action, "ouverte") == 0)      appliquerFenetre(true);
-    else if (strcmp(action, "fermee") == 0) appliquerFenetre(false);
+    if (msg == "ouvrir")      appliquerFenetre(true);
+    else if (msg == "fermer") appliquerFenetre(false);
     else return;
   } else if (strcmp(topic, T_VMC) == 0) {
-    if (strcmp(action, "allumee") == 0)       appliquerVmc(true);
-    else if (strcmp(action, "coupee") == 0) appliquerVmc(false);
+    if (msg == "allumer")     appliquerVmc(true);
+    else if (msg == "couper") appliquerVmc(false);
     else return;
   }
   publierEtat();
@@ -189,9 +184,8 @@ void regulerAuto() {
 void publierMesures() {
   if (isnan(tLissee) || !mqtt.connected()) return;
   JsonDocument doc;
-  doc["t"]  = round(tLissee * 10) / 10.0;
-  doc["h"]  = round(hLissee * 10) / 10.0;
-  doc["ts"] = (long)time(nullptr);
+  doc["temperature"]  = round(tLissee * 10) / 10.0;
+  doc["humidite"]  = round(hLissee * 10) / 10.0;
   char buf[96];
   serializeJson(doc, buf);
   mqtt.publish(T_MESURES, buf);

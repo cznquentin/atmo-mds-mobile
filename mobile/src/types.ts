@@ -23,10 +23,10 @@ export type StatutBroker = 'connexion' | 'connecte' | 'reconnexion' | 'refuse';
 // Contenu de piece/objet/statut, ou « inconnu » tant que rien n'est reçu.
 export type StatutObjet = 'en_ligne' | 'hors_ligne' | 'inconnu';
 
-// Ce que l'écran attend d'une source de données, factice ou MQTT.
+// Ce que l'écran attend d'une source de données : factice, MQTT ou API du back-end.
 export type Piece = {
-  source: 'mqtt' | 'demo';
-  broker: StatutBroker;
+  source: 'mqtt' | 'api' | 'demo';
+  broker: StatutBroker; // avec la source « api » : liaison avec le back-end
   objet: StatutObjet;
   mesures: Mesures | null; // null tant qu'aucune mesure n'est reçue
   recuA: Date | null; // heure de réception de la dernière mesure

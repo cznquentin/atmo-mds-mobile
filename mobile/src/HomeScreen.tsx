@@ -79,11 +79,20 @@ export function HomeScreen({ piece }: { piece: Piece }) {
   const auto = etat?.mode === 'auto';
   const fenetreOuverte = etat?.fenetre === 'ouverte';
   const vmcAllumee = etat?.vmc === 'allumee';
-  // Pas de commande tant qu'on ne connaît pas l'état réel de l'objet.
-  const commandesBloquees = auto || etat === null || piece.broker !== 'connecte';
-  const sousTitre = recuA
-    ? `${piece.source === 'demo' ? 'Données factices · ' : ''}dernière mesure à ${recuA.toLocaleTimeString('fr-FR')}`
-    : 'En attente de la première mesure';
+  // Pas de commande tant qu'on ne connaît pas l'état réel de l'objet, ni s'il ne peut pas la recevoir.
+  const injoignable = etat === null || piece.broker !== 'connecte' || piece.objet === 'hors_ligne';
+  const commandesBloquees = auto || injoignable;
+  const prefixe =
+    piece.source === 'demo'
+      ? 'Données factices · '
+      : piece.broker === 'reconnexion'
+        ? `${piece.source === 'api' ? 'API' : 'Broker'} injoignable · `
+        : piece.objet === 'hors_ligne'
+          ? 'Objet hors ligne · '
+          : '';
+  const sousTitre =
+    prefixe +
+    (recuA ? `dernière mesure à ${recuA.toLocaleTimeString('fr-FR')}` : 'En attente de la première mesure');
 
   return (
     <SafeAreaView style={styles.ecran}>
@@ -117,13 +126,17 @@ export function HomeScreen({ piece }: { piece: Piece }) {
             <View style={styles.texteMode}>
               <Text style={styles.nom}>Mode auto</Text>
               <Text style={styles.detail}>
-                {auto ? "L'objet pilote la fenêtre et la VMC" : 'Vous pilotez la fenêtre et la VMC'}
+                {etat === null
+                  ? "État de l'objet inconnu"
+                  : auto
+                    ? "L'objet pilote la fenêtre et la VMC"
+                    : 'Vous pilotez la fenêtre et la VMC'}
               </Text>
             </View>
             <Switch
               accessibilityLabel="Mode auto"
               value={auto}
-              disabled={etat === null}
+              disabled={injoignable}
               onValueChange={(actif) => piece.changerMode(actif ? 'auto' : 'manuel')}
               trackColor={{ true: COULEURS.accent, false: COULEURS.desactive }}
             />

@@ -40,7 +40,8 @@ function lireEtat(texte: string): Etat | null {
   return null;
 }
 
-export function usePieceMqtt(identifiants: Identifiants): Piece {
+// Sans identifiants : connexion anonyme, acceptée par le broker local de test (pas par EMQX).
+export function usePieceMqtt(identifiants?: Identifiants): Piece {
   const client = useRef<MqttClient | null>(null);
   const [broker, setBroker] = useState<StatutBroker>('connexion');
   const [objet, setObjet] = useState<StatutObjet>('inconnu');
@@ -50,8 +51,8 @@ export function usePieceMqtt(identifiants: Identifiants): Piece {
 
   useEffect(() => {
     const c = mqtt.connect(MQTT_URL, {
-      username: identifiants.utilisateur,
-      password: identifiants.motDePasse,
+      username: identifiants?.utilisateur,
+      password: identifiants?.motDePasse,
       // Identifiant unique : deux clients avec le même identifiant s'éjectent mutuellement.
       clientId: `app-${Math.random().toString(16).slice(2, 10)}`,
       reconnectPeriod: 5_000,
