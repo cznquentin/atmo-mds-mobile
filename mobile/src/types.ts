@@ -7,16 +7,19 @@ export type Mesures = {
 
 export type Fenetre = 'ouverte' | 'fermee';
 export type Vmc = 'allumee' | 'coupee';
+export type Chauffage = 'allume' | 'eteint';
 export type Mode = 'auto' | 'manuel';
 
 export type Etat = {
   fenetre: Fenetre;
   vmc: Vmc;
+  chauffage: Chauffage;
   mode: Mode;
 };
 
 export type CommandeFenetre = 'ouvrir' | 'fermer';
 export type CommandeVmc = 'allumer' | 'couper';
+export type CommandeChauffage = 'allumer' | 'eteindre';
 
 // Connexion de l'app au broker.
 export type StatutBroker = 'connexion' | 'connecte' | 'reconnexion' | 'refuse';
@@ -33,6 +36,7 @@ export type Piece = {
   etat: Etat | null; // null tant que l'objet n'a pas publié son état
   commanderFenetre: (commande: CommandeFenetre) => void;
   commanderVmc: (commande: CommandeVmc) => void;
+  commanderChauffage: (commande: CommandeChauffage) => void;
   changerMode: (mode: Mode) => void;
 };
 

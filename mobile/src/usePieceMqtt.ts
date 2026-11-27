@@ -11,6 +11,7 @@ const T = {
   statut: 'piece/objet/statut',
   fenetre: 'piece/fenetre/commande',
   vmc: 'piece/vmc/commande',
+  chauffage: 'piece/chauffage/commande',
   mode: 'piece/mode',
 } as const;
 
@@ -33,7 +34,9 @@ function lireEtat(texte: string): Etat | null {
       ['ouverte', 'fermee'].includes(e?.fenetre) &&
       ['allumee', 'coupee'].includes(e?.vmc) &&
       ['auto', 'manuel'].includes(e?.mode);
-    if (valide) return { fenetre: e.fenetre, vmc: e.vmc, mode: e.mode };
+    // Objet sans chauffage (ancien firmware) : champ absent, chauffage considéré éteint.
+    const chauffage = e?.chauffage === 'allume' ? 'allume' : 'eteint';
+    if (valide) return { fenetre: e.fenetre, vmc: e.vmc, chauffage, mode: e.mode };
   } catch {
     // message mal formé : ignoré
   }
@@ -110,6 +113,7 @@ export function usePieceMqtt(identifiants?: Identifiants): Piece {
     etat,
     commanderFenetre: (commande) => publier(T.fenetre, commande),
     commanderVmc: (commande) => publier(T.vmc, commande),
+    commanderChauffage: (commande) => publier(T.chauffage, commande),
     changerMode: (mode) => publier(T.mode, mode, true), // retenu : l'objet le retrouve au redémarrage
   };
 }

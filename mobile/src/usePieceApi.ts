@@ -64,6 +64,7 @@ export function usePieceApi(): Piece {
     etat: null,
     commanderFenetre: () => {},
     commanderVmc: () => {},
+    commanderChauffage: () => {},
     changerMode: () => {},
   };
 }

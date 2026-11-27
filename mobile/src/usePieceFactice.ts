@@ -1,31 +1,34 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
+import { decisionAuto, evoluer, securiser } from './logique';
 import type { Etat, Mesures, Piece } from './types';
 
-const PERIODE_MS = 10_000; // même rythme que l'objet
+// Plus rapide que l'objet (10 s) pour voir la pièce réagir pendant la démo.
+const PERIODE_MS = 2_000;
 
-// Fait varier une valeur de ±amplitude, arrondie à 0,1 près.
-function varier(valeur: number, amplitude: number): number {
-  const variation = (Math.random() * 2 - 1) * amplitude;
-  return Math.round((valeur + variation) * 10) / 10;
-}
-
-// Mode démo : données factices, sans broker. Renvoie le même type Piece que usePieceMqtt.
+// Mode démo : pièce simulée, sans broker. Renvoie le même type Piece que usePieceMqtt.
+// La pièce réagit au chauffage, à la fenêtre et à la VMC ; en mode auto, elle se régule seule.
 export function usePieceFactice(): Piece {
-  const [mesures, setMesures] = useState<Mesures>({ temperature: 23.4, humidite: 48.2 });
+  const [mesures, setMesures] = useState<Mesures>({ temperature: 17.6, humidite: 58 });
   const [recuA, setRecuA] = useState(() => new Date());
-  const [etat, setEtat] = useState<Etat>({ fenetre: 'fermee', vmc: 'coupee', mode: 'manuel' });
+  const [etat, setEtat] = useState<Etat>({ fenetre: 'fermee', vmc: 'coupee', chauffage: 'eteint', mode: 'auto' });
+
+  // Le minuteur lit l'état courant sans être recréé à chaque changement.
+  const courant = useRef({ mesures, etat });
+  courant.current = { mesures, etat };
 
   useEffect(() => {
     const minuteur = setInterval(() => {
-      setMesures((m) => ({
-        temperature: varier(m.temperature, 0.3),
-        humidite: varier(m.humidite, 1),
-      }));
+      const { mesures: m, etat: e } = courant.current;
+      const suivantes = evoluer(m, e, Math.random() * 2 - 1);
+      setMesures(suivantes);
       setRecuA(new Date());
+      if (e.mode === 'auto') setEtat(decisionAuto(suivantes, e));
     }, PERIODE_MS);
     return () => clearInterval(minuteur);
   }, []);
+
+  const changer = (modif: Partial<Etat>) => setEtat((e) => securiser({ ...e, ...modif }));
 
   return {
     source: 'demo',
@@ -34,10 +37,10 @@ export function usePieceFactice(): Piece {
     mesures,
     recuA,
     etat,
-    commanderFenetre: (commande) =>
-      setEtat((e) => ({ ...e, fenetre: commande === 'ouvrir' ? 'ouverte' : 'fermee' })),
-    commanderVmc: (commande) =>
-      setEtat((e) => ({ ...e, vmc: commande === 'allumer' ? 'allumee' : 'coupee' })),
-    changerMode: (mode) => setEtat((e) => ({ ...e, mode })),
+    commanderFenetre: (c) => changer({ fenetre: c === 'ouvrir' ? 'ouverte' : 'fermee' }),
+    commanderVmc: (c) => changer({ vmc: c === 'allumer' ? 'allumee' : 'coupee' }),
+    commanderChauffage: (c) => changer({ chauffage: c === 'allumer' ? 'allume' : 'eteint' }),
+    changerMode: (mode) =>
+      setEtat((e) => (mode === 'auto' ? decisionAuto(courant.current.mesures, { ...e, mode }) : { ...e, mode })),
   };
 }

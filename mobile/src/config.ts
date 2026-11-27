@@ -1,6 +1,7 @@
 // Doivent rester identiques aux seuils de l'objet : voir docs/contrat-mqtt.md
 export const SEUIL_TEMPERATURE = 28; // °C
 export const SEUIL_HUMIDITE = 70; // %
+export const SEUIL_FROID = 19; // °C : en dessous, le mode auto chauffe
 
 // Adresse du broker, lue dans mobile/.env (modèle : .env.example).
 // Elle n'est pas secrète. L'app se connecte pour l'instant sans identifiants (broker local de test).
