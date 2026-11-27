@@ -22,16 +22,20 @@
 // ---------- Broches ----------
 #define PIN_DHT    15
 #define PIN_SERVO  18
-#define PIN_RELAIS 26
+#define PIN_RELAIS_VMC 26
+#define PIN_RELAIS_CHAUFFAGE 27
 
 // Mettre false si le relais Wokwi est actif à l'état bas
-#define RELAIS_ACTIF_HAUT true
+#define RELAIS_ACTIF_VMC_HAUT true
+#define RELAIS_ACTIF_CHAUFFAGE_HAUT true
 
 // ---------- Seuils du mode auto (hystérésis pour éviter les oscillations) ----------
-const float TEMP_OUVRIR_FENETRE  = 28.0;  // °C : au-dessus, on ouvre
-const float TEMP_FERMER_FENETRE  = 26.0;  // °C : en dessous, on ferme
-const float HUM_ALLUMER_VMC      = 70.0;  // % : au-dessus, VMC on
-const float HUM_COUPER_VMC       = 60.0;  // % : en dessous, VMC off
+const float TEMP_OUVRIR_FENETRE = 28.0;  // °C : au-dessus, on ouvre
+const float TEMP_FERMER_FENETRE = 26.0;  // °C : en dessous, on ferme
+const float HUM_ALLUMER_VMC = 70.0;  // % : au-dessus, VMC on
+const float HUM_COUPER_VMC = 60.0;  // % : en dessous, VMC off
+const float TEMP_ALLUMER_CHAUFFAGE = 18.0; // °C : en-dessous, on allume
+const float TEMP_COUPER_CHAUFFAGE = 19.0; // °C : au-dessus, on coupe
 
 // ---------- Cadence ----------
 const unsigned long PERIODE_LECTURE_MS = 100;   // le DHT22 ne lit pas plus vite que ~0,5 Hz
@@ -44,6 +48,7 @@ const char* T_ETAT    = "piece/etat";
 const char* T_STATUT  = "piece/objet/statut";
 const char* T_FENETRE = "piece/fenetre/commande";
 const char* T_VMC     = "piece/vmc/commande";
+const char* T_CHAUFFAGE = "piece/chauffage/commande";
 const char* T_MODE    = "piece/mode";
 
 // ---------- Objets ----------
@@ -55,6 +60,7 @@ PubSubClient mqtt(reseau);
 // ---------- État ----------
 bool fenetreOuverte = false;
 bool vmcActive      = false;
+bool chauffageAllume = false;
 bool modeAuto       = true;
 
 float bufT[NB_ECHANTILLONS], bufH[NB_ECHANTILLONS];
@@ -69,16 +75,22 @@ void appliquerFenetre(bool ouverte) {
   servoFenetre.write(ouverte ? 90 : 0);
 }
 
-void appliquerVmc(bool on) {
-  vmcActive = on;
-  digitalWrite(PIN_RELAIS, (on == RELAIS_ACTIF_HAUT) ? HIGH : LOW);
+void appliquerVmc(bool allume) {
+  vmcActive = allume;
+  digitalWrite(PIN_RELAIS_VMC, (allume == RELAIS_ACTIF_VMC_HAUT) ? HIGH : LOW);
+}
+
+void appliquerChauffage(bool allume) {
+  chauffageAllume = allume;
+  digitalWrite(PIN_RELAIS_CHAUFFAGE, (allume == RELAIS_ACTIF_CHAUFFAGE_HAUT) ? HIGH : LOW);
 }
 
 void publierEtat() {
   JsonDocument doc;
   doc["fenetre"] = fenetreOuverte ? "ouverte" : "fermee";
-  doc["vmc"]     = vmcActive ? "allumee" : "coupee";
-  doc["mode"]    = modeAuto ? "auto" : "manuel";
+  doc["vmc"] = vmcActive ? "allumee" : "coupee";
+  doc["chauffage"] = chauffageAllume ? "allume" : "coupe";
+  doc["mode"] = modeAuto ? "auto" : "manuel";
   char buf[96];
   serializeJson(doc, buf);
   mqtt.publish(T_ETAT, buf, true);  // retain : l'app récupère l'état dès qu'elle se connecte
@@ -113,6 +125,10 @@ void surMessage(char* topic, byte* payload, unsigned int len) {
     if (msg == "allumer")     appliquerVmc(true);
     else if (msg == "couper") appliquerVmc(false);
     else return;
+  } else if (strcmp(topic, T_CHAUFFAGE) == 0) {
+    if (msg == "allumer")     appliquerChauffage(true);
+    else if (msg == "couper") appliquerChauffage(false);
+    else return;
   }
   publierEtat();
 }
@@ -140,6 +156,7 @@ bool connecterMqtt() {
     mqtt.publish(T_STATUT, "en_ligne", true);
     mqtt.subscribe(T_FENETRE, 1);
     mqtt.subscribe(T_VMC, 1);
+    mqtt.subscribe(T_CHAUFFAGE,1);
     mqtt.subscribe(T_MODE, 1);  // le message retain restaure le dernier mode choisi
     publierEtat();
     return true;
@@ -178,6 +195,11 @@ void regulerAuto() {
   if (!vmcActive && hLissee > HUM_ALLUMER_VMC) { appliquerVmc(true);  change = true; }
   if (vmcActive  && hLissee < HUM_COUPER_VMC)  { appliquerVmc(false); change = true; }
 
+  if(chauffageAllume && tLissee > TEMP_COUPER_CHAUFFAGE) {
+    appliquerChauffage(false); change = true;}
+  if(!chauffageAllume && tLissee < TEMP_ALLUMER_CHAUFFAGE) {
+    appliquerChauffage(true); change = true; }
+
   if (change && mqtt.connected()) publierEtat();
 }
 
@@ -195,7 +217,8 @@ void publierMesures() {
 // ---------- Arduino ----------
 void setup() {
   Serial.begin(115200);
-  pinMode(PIN_RELAIS, OUTPUT);
+  pinMode(PIN_RELAIS_VMC, OUTPUT);
+  pinMode(PIN_RELAIS_CHAUFFAGE,OUTPUT);
   dht.begin();
   servoFenetre.attach(PIN_SERVO);
   appliquerFenetre(false);

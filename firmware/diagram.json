@@ -32,8 +32,8 @@
     {
       "type": "wokwi-relay",
       "id": "relay_1795696997710_qgz4n4wmo",
-      "top": 130,
-      "left": -278,
+      "top": 54,
+      "left": -216,
       "attrs": {
         "coil_voltage": 3.3,
         "coil_resistance": 70,
@@ -56,6 +56,28 @@
       "id": "resistor_220_1795697140122_iv2evlpf2",
       "top": 121,
       "left": 245,
+      "rotate": 90,
+      "attrs": {
+        "value": "220",
+        "power": "0.25"
+      }
+    },
+    {
+      "type": "wokwi-relay",
+      "id": "relay_1795785122813_5z0zaa1yl",
+      "top": 379,
+      "left": -155,
+      "attrs": {
+        "coil_voltage": 3.3,
+        "coil_resistance": 70,
+        "include_flyback": true
+      }
+    },
+    {
+      "type": "wokwi-resistor-220",
+      "id": "resistor_220_1795785363120_3fu81wn5k",
+      "top": 354,
+      "left": -324,
       "rotate": 90,
       "attrs": {
         "value": "220",
@@ -128,6 +150,36 @@
       "resistor_220_1795697140122_iv2evlpf2:2",
       "rgb_led_1795696793900_b7uc8nd0f:G",
       "green",
+      []
+    ],
+    [
+      "esp32-devkit-c-v4:27",
+      "relay_1795785122813_5z0zaa1yl:COIL+",
+      "blue",
+      []
+    ],
+    [
+      "relay_1795785122813_5z0zaa1yl:COIL-",
+      "esp32-devkit-c-v4:GND.1",
+      "black",
+      []
+    ],
+    [
+      "relay_1795785122813_5z0zaa1yl:COM",
+      "esp32-devkit-c-v4:3V3",
+      "red",
+      []
+    ],
+    [
+      "relay_1795785122813_5z0zaa1yl:NO",
+      "resistor_220_1795785363120_3fu81wn5k:1",
+      "orange",
+      []
+    ],
+    [
+      "resistor_220_1795785363120_3fu81wn5k:2",
+      "rgb_led_1795696793900_b7uc8nd0f:R",
+      "red",
       []
     ],
     [
